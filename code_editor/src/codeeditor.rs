@@ -134,6 +134,10 @@ impl CodeEditor {
         self.text.clone()
     }
 
+    pub fn set_theme(&mut self, theme: Theme) {
+        self.theme = theme;
+    }
+
     pub fn set_error(&mut self, error: Option<(String, Option<usize>)>) {
         self.error = error;
         self.needs_update = true;
