@@ -4,11 +4,9 @@ A standalone code (and text) editor for people like me who write their own user 
 
 CodeEditor renders its display into a ```Vec<u8>``` and is completely independent from any UI crate. It utilizes [fontdue](https://github.com/mooman219/fontdue) for rendering fonts.
 
-CodeEditor is actively maintained and I will improve it over time as I use it for my own applications.
-
 ## Example App
 
-A standalone pixels and winit based example app is included in this repo.
+A standalone ```pixels``` and ```winit``` based example app is included in this repo.
 
 ![Screenshot](images/screenshot.png)
 
@@ -25,37 +23,18 @@ Taken from the example app:
     code_editor.set_text("Your source code".to_string());
 ```
 
+You can get the edited text via ```get_text()```. You will also need to connect mouse and keyboard events to the code editor, see the example app.
+
 #### Syntax Highlighting
 
 The syntax highlighting is right now not configurable but is pretty universal. Supported modes are right now Rhai and Text (which has no highlighting). I will try to make the syntax highlighting more configurable in the future, in the meantime you can tweak the source code to your needs.
 
 #### Themes
 
-The default theme looks like this:
+The default theme has this implementation:
 
 ```rust
-
-pub struct Theme {
-
-    pub background          : [u8;4],
-    pub line_numbers        : [u8;4],
-    pub line_numbers_bg     : [u8;4],
-
-    pub text                : [u8;4],
-    pub cursor              : [u8;4],
-
-    pub identifier          : [u8;4],
-    pub number              : [u8;4],
-    pub keywords            : [u8;4],
-    pub brackets            : [u8;4],
-    pub comments            : [u8;4],
-    pub string              : [u8;4],
-
-    pub error               : [u8;4],
-}
-
 impl Theme {
-
     pub fn new() -> Self {
         Self {
             background      : [34, 34, 36, 255],
@@ -80,3 +59,6 @@ impl Theme {
 
 You can tweak it in the theme property of the CodeEditor struct or you can set a new theme via the ```set_theme(theme);``` function.
 
+# Disclaimer
+
+CodeEditor is actively maintained and I will improve it over time as I use it for my own applications.
