@@ -6,6 +6,7 @@ authors = ["Markus Moenig"]
 description = "A standalone code editor with syntax highlighting"
 license = "MIT"
 repository = "https://github.com/markusmoenig/code_editor.git"
+keywords = ["code", "editor", "syntax", "highlighting"]
 
 [dependencies]
 fontdue = "0.7.2"
