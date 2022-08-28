@@ -1,0 +1,8 @@
+[package]
+name = "code_editor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fontdue = "0.7.2"
+copypasta = "0.8.1"

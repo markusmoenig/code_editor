@@ -1,0 +1,2 @@
+cargo:rustc-cfg=apple
+cargo:rustc-cfg=metal

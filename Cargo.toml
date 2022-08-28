@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+    "code_editor",
+    "example_app",
+]
+
+edition = "2021"
+resolver = "2"
