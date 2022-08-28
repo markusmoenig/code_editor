@@ -1,5 +1,3 @@
-[![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?)](https://github.com/tterb/atomic-design-ui/blob/master/LICENSEs) [![version](https://img.shields.io/badge/version-0.1.0-red.svg)](https://shields.io/) [![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/EldironRPG)
-
 # CodeEditor
 
 A standalone code (and text) editor for people like me who write their own user interfaces utilizing crates like [pixels](https://github.com/parasyte/pixels).
@@ -8,17 +6,9 @@ CodeEditor renders its display into a ```Vec<u8>``` and is completely independen
 
 ## Example App
 
-A standalone ```pixels``` and ```winit``` based example app is included in this repo.
-
-![Screenshot](images/screenshot.png)
+A standalone ```pixels``` and ```winit``` based example app is included in the [repository](https://github.com/markusmoenig/code_editor).
 
 ## Usage
-
-Add code_editor to your Cargo.toml
-
-```
-code_editor = "0.1.0"
-```
 
 And than implement it in your app.
 

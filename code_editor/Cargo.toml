@@ -2,6 +2,10 @@
 name = "code_editor"
 version = "0.1.0"
 edition = "2021"
+authors = ["Markus Moenig"]
+description = "A standalone code editor with syntax highlighting"
+license = "MIT"
+repository = "https://github.com/markusmoenig/code_editor.git"
 
 [dependencies]
 fontdue = "0.7.2"
