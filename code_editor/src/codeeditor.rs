@@ -320,7 +320,13 @@ impl CodeEditor {
                     TokenType::HexColor if self.mode == CodeEditorMode::Settings => { color = self.theme.string; printit = true; },
                     TokenType::Number if self.mode == CodeEditorMode::Rhai || self.mode == CodeEditorMode::Settings => { color = self.theme.number; printit = true; },
                     TokenType::String  if self.mode == CodeEditorMode::Rhai || self.mode == CodeEditorMode::Settings => { color = self.theme.string; printit = true; },
+                    TokenType::While if self.mode == CodeEditorMode::Rhai => { color = self.theme.keywords; printit = true; },
+                    TokenType::For if self.mode == CodeEditorMode::Rhai => { color = self.theme.keywords; printit = true; },
+                    TokenType::If if self.mode == CodeEditorMode::Rhai => { color = self.theme.keywords; printit = true; },
+                    TokenType::Else if self.mode == CodeEditorMode::Rhai => { color = self.theme.keywords; printit = true; },
                     TokenType::Let if self.mode == CodeEditorMode::Rhai => { color = self.theme.keywords; printit = true; },
+                    TokenType::Fun if self.mode == CodeEditorMode::Rhai => { color = self.theme.keywords; printit = true; },
+                    TokenType::Print if self.mode == CodeEditorMode::Rhai => { color = self.theme.keywords; printit = true; },
                     TokenType::Quotation if self.mode == CodeEditorMode::Rhai => { color = self.theme.string; printit = true; },
 
                     TokenType::LeftBrace | TokenType::RightBrace | TokenType::LeftParen | TokenType::RightParen | TokenType::Dollar => { color = self.theme.brackets; printit = true; },

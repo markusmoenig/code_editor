@@ -99,7 +99,7 @@ impl<'sourcecode> Scanner<'sourcecode> {
         keywords.insert("else", TokenType::Else);
         keywords.insert("false", TokenType::False);
         keywords.insert("for", TokenType::For);
-        keywords.insert("fun", TokenType::Fun);
+        keywords.insert("fn", TokenType::Fun);
         keywords.insert("if", TokenType::If);
         keywords.insert("nil", TokenType::Nil);
         keywords.insert("or", TokenType::Or);
