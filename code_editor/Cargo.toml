@@ -1,6 +1,6 @@
 [package]
 name = "code_editor"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Markus Moenig"]
 description = "A standalone code editor with syntax highlighting"
