@@ -1,4 +1,4 @@
-[![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?)](https://github.com/tterb/atomic-design-ui/blob/master/LICENSEs) [![version](https://img.shields.io/badge/version-0.2.1-red.svg)](https://shields.io/) [![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/EldironRPG)
+[![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?)](https://github.com/tterb/atomic-design-ui/blob/master/LICENSEs) [![version](https://img.shields.io/badge/version-0.2.2-red.svg)](https://shields.io/) [![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/EldironRPG)
 
 # CodeEditor
 
@@ -17,7 +17,7 @@ A standalone ```pixels``` and ```winit``` based example app is included in this 
 Add code_editor to your Cargo.toml
 
 ```
-code_editor = "0.2.1"
+code_editor = "0.2.2"
 ```
 
 And than in your app

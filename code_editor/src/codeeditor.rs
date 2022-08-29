@@ -249,8 +249,7 @@ impl CodeEditor {
             self.max_offset.0 = screen_width / self.advance_width;
 
             let left_size = self.settings.line_number_width;
-            //screen_width += left_size;
-            //screen_height += left_size;
+            screen_height += left_size;
             self.needs_update = false;
 
             self.line_numbers_buffer = vec![0; left_size * screen_height * 4];
