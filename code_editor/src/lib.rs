@@ -4,6 +4,7 @@ pub mod theme;
 pub mod settings;
 pub mod codeeditor;
 
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum WidgetKey {
     Escape,
     Return,
