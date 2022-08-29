@@ -1,6 +1,7 @@
 mod scanner;
 mod draw2d;
 pub mod theme;
+pub mod settings;
 pub mod codeeditor;
 
 pub enum WidgetKey {
@@ -17,6 +18,7 @@ pub enum WidgetKey {
 
 pub mod prelude {
     pub use crate::scanner::*;
+    pub use crate::settings::*;
     pub use crate::theme::*;
     pub use crate::WidgetKey;
     pub use crate::draw2d::*;

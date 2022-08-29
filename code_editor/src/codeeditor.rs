@@ -28,6 +28,9 @@ pub struct CodeEditor {
     needs_update            : bool,
     pub mode                : CodeEditorMode,
 
+    line_numbers_buffer     : Vec<u8>,
+    line_numbers_size       : (usize, usize),
+
     text_buffer             : Vec<u8>,
     text_buffer_size        : (usize, usize),
 
@@ -41,6 +44,7 @@ pub struct CodeEditor {
     logo                    : bool,
 
     pub theme               : Theme,
+    pub settings            : Settings,
 
     error                   : Option<(String, Option<usize>)>,
 
@@ -75,6 +79,9 @@ impl CodeEditor {
             needs_update                : true,
             mode                        : CodeEditorMode::Rhai,
 
+            line_numbers_buffer         : vec![0;1],
+            line_numbers_size           : (0, 0),
+
             text_buffer                 : vec![0;1],
             text_buffer_size            : (0, 0),
 
@@ -88,6 +95,7 @@ impl CodeEditor {
             logo                        : false,
 
             theme                       : Theme::new(),
+            settings                    : Settings::new(),
 
             error                       : None,
 
@@ -175,11 +183,18 @@ impl CodeEditor {
         self.draw2d.draw_rect(frame, &rect, stride, &self.theme.background);
         self.draw2d.draw_rect(frame, &(rect.0, rect.1, 95, rect.3), stride, &self.theme.line_numbers_bg);
 
-        let x = rect.0 as isize - self.offset.0 * self.advance_width as isize;
+        let x = self.line_numbers_size.0 as isize + rect.0 as isize - self.offset.0 * self.advance_width as isize;
         let y = rect.1 as isize - self.offset.1 * self.advance_height as isize;
-        self.draw2d.blend_slice_safe(frame, &mut self.text_buffer[..], &(x, y, self.text_buffer_size.0, self.text_buffer_size.1), stride, &rect);
 
-        self.draw2d.draw_rect_safe(frame, &((rect.0 + self.cursor_rect.0) as isize - self.offset.0 * self.advance_width as isize, (rect.1 + self.cursor_rect.1) as isize - self.offset.1 * self.advance_height as isize, self.cursor_rect.2, self.cursor_rect.3), stride, &self.theme.cursor, &rect);
+        // Line Numbers
+        self.draw2d.blend_slice_safe(frame, &mut &self.line_numbers_buffer[..], &(0, y, self.line_numbers_size.0, self.line_numbers_size.1), stride, &rect);
+
+        // Code
+        let code_safe_rect = (rect.0 + self.line_numbers_size.0, rect.1, rect.2 - self.line_numbers_size.0, rect.3);
+        self.draw2d.blend_slice_safe(frame, &mut self.text_buffer[..], &(x, y, self.text_buffer_size.0, self.text_buffer_size.1), stride, &code_safe_rect);
+
+        // Cursor
+        self.draw2d.draw_rect_safe(frame, &((rect.0 + self.line_numbers_size.0 + self.cursor_rect.0) as isize - self.offset.0 * self.advance_width as isize, (rect.1 + self.cursor_rect.1) as isize - self.offset.1 * self.advance_height as isize, self.cursor_rect.2, self.cursor_rect.3), stride, &self.theme.cursor, &code_safe_rect);
     }
 
     // Inside the selection range ?
@@ -233,10 +248,13 @@ impl CodeEditor {
 
             self.max_offset.0 = screen_width / self.advance_width;
 
-            let left_size = 100;
-            screen_width += left_size;
-            screen_height += left_size;
+            let left_size = self.settings.line_number_width;
+            //screen_width += left_size;
+            //screen_height += left_size;
             self.needs_update = false;
+
+            self.line_numbers_buffer = vec![0; left_size * screen_height * 4];
+            self.line_numbers_size = (left_size, screen_height);
 
             self.text_buffer = vec![0; screen_width * screen_height * 4];
             self.text_buffer_size = (screen_width, screen_height);
@@ -245,7 +263,7 @@ impl CodeEditor {
 
             let mut scanner = Scanner::new(self.text.as_str());
 
-            let mut x = left_size;
+            let mut x = 0;
             let mut y = 0;
 
             let stride = screen_width;
@@ -275,24 +293,24 @@ impl CodeEditor {
                                 }
                             }
                         }
-                        self.draw2d.draw_text_rect(&mut self.text_buffer[..], &(0, y, 60, self.advance_height), stride, font, self.font_size, format!("{}", line_number).as_str(), &text_color, &self.theme.background, crate::draw2d::TextAlignment::Right);
+                        self.draw2d.draw_text_rect(&mut self.line_numbers_buffer[..], &(0, y, left_size - 20, self.advance_height), left_size, font, self.font_size, format!("{}", line_number).as_str(), &text_color, &self.theme.background, crate::draw2d::TextAlignment::Right);
                         number_printed_for_line = line_number;
 
-                        if x == 100 {
+                        if x == 0 {
                             // Draw empty selection marker ?
                             if self.inside_selection(0,  y / self.advance_height) {
                                 let bcolor = [45, 133, 200, 255];//self.theme.keywords;
                                 self.draw2d.blend_rect(&mut self.text_buffer[..], &(x, y, self.advance_width / 2, self.advance_height), stride, &bcolor);
                             }
                         }
-                        x = left_size;
+                        x = 0;
                         y += self.advance_height;
                         line_number += 1;
                     },
                     TokenType::Space => {
 
                         // Inside the selection range ?
-                        if self.inside_selection((x - left_size) / self.advance_width,  y / self.advance_height) {
+                        if self.inside_selection(x / self.advance_width,  y / self.advance_height) {
                             let bcolor = [45, 133, 200, 255];//self.theme.keywords;
                             self.draw2d.blend_rect(&mut self.text_buffer[..], &(x, y, self.advance_width, self.advance_height), stride, &bcolor);
                         }
@@ -310,7 +328,7 @@ impl CodeEditor {
                                     }
                                 }
                             }
-                            self.draw2d.draw_text_rect(&mut self.text_buffer[..], &(0, y, 60, self.advance_height), stride, font, self.font_size, format!("{}", line_number).as_str(), &text_color, &self.theme.background, crate::draw2d::TextAlignment::Right);
+                            self.draw2d.draw_text_rect(&mut self.line_numbers_buffer[..], &(0, y, left_size - 20, self.advance_height), left_size, font, self.font_size, format!("{}", line_number).as_str(), &text_color, &self.theme.background, crate::draw2d::TextAlignment::Right);
                         }
 
                         finished = true },
@@ -348,7 +366,7 @@ impl CodeEditor {
                             let mut bcolor = self.theme.background;
 
                             // Inside the selection range ?
-                            if self.inside_selection((x - left_size) / self.advance_width,  y / self.advance_height) {
+                            if self.inside_selection(x / self.advance_width,  y / self.advance_height) {
                                 bcolor = selection_color;
                                 self.draw2d.blend_rect( &mut self.text_buffer[..], &(x, y, self.advance_width, self.advance_height), stride, &bcolor);
                             }
@@ -383,7 +401,7 @@ impl CodeEditor {
         let px = pos.0;
         let py = pos.1;
 
-        let left_size = 100_usize;
+        let left_size = 0;
         let line_height = self.advance_height;
 
         self.cursor_offset = 0;
@@ -397,7 +415,7 @@ impl CodeEditor {
         if self.text.is_empty() {
             self.cursor_pos.0 = 0;
             self.cursor_pos.1 = 0;
-            self.cursor_rect.0 = left_size;
+            self.cursor_rect.0 = 0;
             self.cursor_rect.1 = 0;
             self.cursor_rect.3 = self.advance_height;
             return true;
@@ -409,13 +427,13 @@ impl CodeEditor {
 
                 self.cursor_pos.0 = 0;
                 self.cursor_pos.1 = curr_line_index;
-                self.cursor_rect.0 = left_size;
+                self.cursor_rect.0 = 0;
                 self.cursor_rect.1 = y;
                 self.cursor_rect.3 = line_height;
 
-                if px > 100 {
-                    self.cursor_pos.0 = (px - 100) / self.advance_width + 1;
-                    if (px - 100) % self.advance_width < self.advance_width /2 && self.cursor_pos.0 > 0 && self.cursor_pos.0 <= line.len() {
+                if px > left_size {
+                    self.cursor_pos.0 = (px - left_size) / self.advance_width + 1;
+                    if (px - left_size) % self.advance_width < self.advance_width /2 && self.cursor_pos.0 > 0 && self.cursor_pos.0 <= line.len() {
                         self.cursor_pos.0 -= 1;
                     }
                     self.cursor_pos.0 = std::cmp::min(self.cursor_pos.0, line.len());
@@ -442,7 +460,7 @@ impl CodeEditor {
             if self.text.ends_with("\n") {
                 self.cursor_pos.0 = 0;
                 self.cursor_pos.1 = curr_line_index;
-                self.cursor_rect.0 = left_size;
+                self.cursor_rect.0 = 0;
                 self.cursor_rect.1 = y;
                 self.cursor_rect.3 = line_height;
             } else {
@@ -456,7 +474,7 @@ impl CodeEditor {
     /// Sets the cursor to the given position
     fn set_cursor(&mut self, pos: (usize, usize)) {
         self.cursor_pos = pos;
-        self.cursor_rect.0 = 100 + pos.0 * self.advance_width;
+        self.cursor_rect.0 = pos.0 * self.advance_width;
         self.cursor_rect.1 = (pos.1+1) * self.advance_height;
         self.set_cursor_offset_from_pos((self.cursor_rect.0, self.cursor_rect.1));
     }
@@ -507,7 +525,6 @@ impl CodeEditor {
     }
 
     pub fn key_down(&mut self, char: Option<char>, key: Option<WidgetKey>) -> bool {
-
         if self.logo || self.ctrl {
             use copypasta::{ClipboardContext, ClipboardProvider};
 
@@ -578,12 +595,12 @@ impl CodeEditor {
                             let second_half = self.copy_range(Some((end.0 + 1, end.1)), None);
                             let text = first_half + second_half.as_str();
                             self.text = text;
+                            self.range_start = None;
+                            self.range_end = None;
                             self.process_text();
                             handled = true;
 
                             self.set_cursor(start);
-                            self.range_start = None;
-                            self.range_end = None;
                         }
                     }
                     if handled == false && self.text.is_empty() == false && self.cursor_offset >= 1 {
@@ -606,7 +623,7 @@ impl CodeEditor {
                         if delete_line == false {
                             self.set_cursor_offset_from_pos((self.cursor_rect.0 - self.advance_width, self.cursor_rect.1 + 10));
                         } else {
-                            self.set_cursor_offset_from_pos((100 + number_of_chars_on_prev_line * self.advance_width - 2, self.cursor_rect.1 - 5));
+                            self.set_cursor_offset_from_pos((number_of_chars_on_prev_line * self.advance_width - 2, self.cursor_rect.1 - 5));
                         }
                     }
                     return  true;
@@ -623,7 +640,7 @@ impl CodeEditor {
                 WidgetKey::Return => {
                     self.text.insert(self.cursor_offset, '\n');
                     self.process_text();
-                    self.set_cursor_offset_from_pos((100, self.cursor_rect.1 + 30));
+                    self.set_cursor_offset_from_pos((0, self.cursor_rect.1 + 30));
                     return  true;
                 },
 
@@ -642,12 +659,15 @@ impl CodeEditor {
                 WidgetKey::Left => {
 
                     if self.logo || self.ctrl {
-                        self.set_cursor_offset_from_pos((100, self.cursor_rect.1 + 10));
+                        self.set_cursor_offset_from_pos((0, self.cursor_rect.1 + 10));
                     } else {
-
-                        if self.cursor_pos.0 > 0 && self.cursor_rect.0 >= 100 {
+                        if self.cursor_pos.0 > 0 {//&& self.cursor_rect.0 >= 5 {
                             // Go one left
-                            self.set_cursor_offset_from_pos((self.cursor_rect.0 - self.advance_width, self.cursor_rect.1 + 10));
+                            if self.cursor_rect.0 > self.advance_width {
+                                self.set_cursor_offset_from_pos((self.cursor_rect.0 - self.advance_width, self.cursor_rect.1 + 10));
+                            } else {
+                                self.set_cursor_offset_from_pos((0, self.cursor_rect.1 + 10));
+                            }
                         } else {
                             // Go one up
                             if self.cursor_rect.1 >= 5 {
@@ -665,7 +685,7 @@ impl CodeEditor {
                         if let Some(c) = self.text.chars().nth(self.cursor_offset) {
                             if c == '\n' {
                                 // Go down
-                                self.set_cursor_offset_from_pos((100, self.cursor_rect.1 + 30));
+                                self.set_cursor_offset_from_pos((0, self.cursor_rect.1 + 30));
                             } else {
                                 // Go Right
                                 self.set_cursor_offset_from_pos((self.cursor_rect.0 + self.advance_width, self.cursor_rect.1 + 10));
@@ -714,12 +734,15 @@ impl CodeEditor {
     }
 
     pub fn mouse_down(&mut self, pos: (usize, usize)) -> bool {
-        let consumed = self.set_cursor_offset_from_pos((pos.0 + self.offset.0 as usize * self.advance_width as usize, pos.1 + self.offset.1 as usize * self.advance_height as usize));
-        self.range_buffer = self.cursor_pos.clone();
-        self.range_start = Some(self.cursor_pos.clone());
-        self.range_end = None;
-        self.needs_update = true;
-        consumed
+        if pos.0 > self.settings.line_number_width {
+            let consumed = self.set_cursor_offset_from_pos((pos.0 - self.settings.line_number_width + self.offset.0 as usize * self.advance_width as usize, pos.1 + self.offset.1 as usize * self.advance_height as usize));
+            self.range_buffer = self.cursor_pos.clone();
+            self.range_start = Some(self.cursor_pos.clone());
+            self.range_end = None;
+            self.needs_update = true;
+            return consumed;
+        }
+        false
     }
 
     pub fn mouse_up(&mut self, _pos: (usize, usize)) -> bool {
@@ -732,8 +755,12 @@ impl CodeEditor {
         false
     }
 
-    pub fn mouse_dragged(&mut self, pos: (usize, usize)) -> bool {
-        let consumed = self.set_cursor_offset_from_pos((pos.0 + self.offset.0 as usize * self.advance_width as usize, pos.1 + self.offset.1 as usize * self.advance_height as usize));
+    pub fn mouse_dragged(&mut self, mut pos: (usize, usize)) -> bool {
+        if pos.0 < self.settings.line_number_width {
+            pos.0 = self.settings.line_number_width;
+        }
+
+        let consumed = self.set_cursor_offset_from_pos((pos.0 - self.settings.line_number_width + self.offset.0 as usize * self.advance_width as usize, pos.1 + self.offset.1 as usize * self.advance_height as usize));
 
         if (self.cursor_pos.1 == self.range_buffer.1 && self.cursor_pos.0 <= self.range_buffer.0) || self.cursor_pos.1 < self.range_buffer.1 {
             self.range_start = Some(self.cursor_pos.clone());

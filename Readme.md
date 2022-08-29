@@ -20,7 +20,7 @@ Add code_editor to your Cargo.toml
 code_editor = "0.1.0"
 ```
 
-And than implement it in your app.
+And than in your app
 
 ```rust
 use code_editor::prelude::*;
@@ -32,6 +32,14 @@ code_editor.set_font_size(17.0);
 
 code_editor.set_text("Your source code".to_string());
 ```
+
+In your draw loop you can than draw the editor
+
+```rust
+code_editor.draw(frame, (0, 0, width, height), width);
+```
+
+The second parameter is the drawing rectangle into your frame, the last parameter is the stride in pixels.
 
 You can get the edited text via ```get_text()```. You will also need to connect mouse and keyboard events to the code editor, see the example app.
 

@@ -276,11 +276,8 @@ if result != ANSWER {
                 pixels.resize_surface(size.width, size.height);
                 let scale = window.scale_factor() as u32;
                 pixels.resize_buffer(size.width / scale, size.height / scale);
-                //curr_screen.resize(size.width as usize / scale as usize, size.height as usize / scale as usize);
                 width = size.width as usize / scale as usize;
                 height = size.height as usize / scale as usize;
-                //render.width =  size.width as usize / scale as usize;
-                //render.height =  size.height as usize / scale as usize;
                 window.request_redraw();
             }
 
