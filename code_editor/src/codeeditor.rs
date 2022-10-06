@@ -57,6 +57,8 @@ pub struct CodeEditor {
     range_end               : Option<(usize, usize)>,
 
     last_pos                : (usize, usize),
+    last_click              : u128,
+    click_stage             : i32,
 
     pub drag_pos            : Option<(usize, usize)>,
 }
@@ -110,6 +112,8 @@ impl CodeEditor {
             range_end                   : None,
 
             last_pos                    : (0, 0),
+            last_click                  : 0,
+            click_stage                 : 0,
 
             drag_pos                    : None,
         }
@@ -791,14 +795,94 @@ impl CodeEditor {
         false
     }
 
-    pub fn mouse_down(&mut self, pos: (usize, usize)) -> bool {
-        if pos.0 > self.settings.line_number_width {
+    pub fn mouse_down(&mut self, p: (usize, usize)) -> bool {
+
+        let mut pos = p.clone();
+        pos.0 = pos.0.max(self.settings.line_number_width);
+
+        let time = self.get_time();
+
+        if time - self.last_click > 500 {
             let consumed = self.set_cursor_offset_from_pos((pos.0 - self.settings.line_number_width + self.offset.0 as usize * self.advance_width as usize, pos.1 + self.offset.1 as usize * self.advance_height as usize));
             self.range_buffer = self.cursor_pos.clone();
             self.range_start = Some(self.cursor_pos.clone());
             self.range_end = None;
             self.needs_update = true;
+            self.last_click = time;
+            self.click_stage = 0;
             return consumed;
+        } else {
+
+            if self.click_stage == 0 {
+
+                let line = self.cursor_pos.1;
+
+                let mut left =  self.cursor_pos.0;
+                let mut right = self.cursor_pos.0;
+
+                let mut range_start = Some((left, line));
+                let mut range_end = Some((right, line));
+
+                let t = self.copy_range_incl(range_start, range_end);
+                let c = t.chars().next();
+
+                if let Some(c) = c {
+                    if c.is_alphanumeric() {
+
+                        // Go left
+
+                        while left > 0 {
+                            left -= 1;
+                            let r_start = Some((left, line));
+                            let t = self.copy_range_incl(r_start, range_end);
+                            let c = t.chars().next();
+
+                            if let Some(c) = c {
+                                if c.is_alphanumeric() == false {
+                                    left += 1;
+                                    range_start = Some((left, line));
+                                    break;
+                                } else {
+                                    range_start = Some((left, line));
+                                }
+                            }
+                        }
+
+                        // Go Right
+
+                        loop {
+                            right += 1;
+                            let r_end = Some((right, line));
+                            let t = self.copy_range_incl(range_start, r_end);
+                            let c = t.chars().last();
+
+                            if let Some(c) = c {
+                                if c.is_alphanumeric() == false {
+                                    right -= 1;
+                                    range_end = Some((right, line));
+                                    break;
+                                }
+                            }
+                        }
+
+                        self.range_start = range_start;
+                        self.range_end = range_end;
+                        self.needs_update = true;
+
+                        self.last_click = time;
+                        self.click_stage = 1;
+
+                        return true;
+                    }
+                }
+            } else {
+                let line = self.cursor_pos.1;
+                self.range_start = Some((0, line));
+                self.range_end = Some((100000, line));
+                self.needs_update = true;
+                self.click_stage = 2;
+                return  true;
+            }
         }
         false
     }
@@ -866,6 +950,15 @@ impl CodeEditor {
         self.alt = alt;
         self.logo = logo;
         false
+    }
+
+    /// Gets the current time in milliseconds
+    fn get_time(&self) -> u128 {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let stop = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+            stop.as_millis()
     }
 
 }
