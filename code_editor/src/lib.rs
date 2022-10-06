@@ -3,6 +3,7 @@ mod draw2d;
 pub mod theme;
 pub mod settings;
 pub mod codeeditor;
+pub mod error;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum WidgetKey {
@@ -24,4 +25,5 @@ pub mod prelude {
     pub use crate::WidgetKey;
     pub use crate::draw2d::*;
     pub use crate::codeeditor::*;
+    pub use crate::error::*;
 }

@@ -56,6 +56,8 @@ pub struct CodeEditor {
     range_start             : Option<(usize, usize)>,
     range_end               : Option<(usize, usize)>,
 
+    last_pos                : (usize, usize),
+
     pub drag_pos            : Option<(usize, usize)>,
 }
 
@@ -106,6 +108,8 @@ impl CodeEditor {
             range_buffer                : (0, 0),
             range_start                 : None,
             range_end                   : None,
+
+            last_pos                    : (0, 0),
 
             drag_pos                    : None,
         }
@@ -164,13 +168,13 @@ impl CodeEditor {
         }
 
         if let Some(drag_pos) = self.drag_pos {
-            if drag_pos.1 >= rect.1 + rect.3 - 75 {
+            if drag_pos.1 >= rect.1 + rect.3 - 50 {
                 if (self.offset.1 as usize) < self.max_offset.1 {
                     self.offset.1 += 1;
                     self.mouse_dragged(drag_pos);
                 }
             } else
-            if drag_pos.1 <= rect.1 + 75 {
+            if drag_pos.1 <= rect.1 + 50 {
                 if self.offset.1 > 0 {
                     self.offset.1 -= 1;
                     self.mouse_dragged(drag_pos);
@@ -222,7 +226,10 @@ impl CodeEditor {
             let mut screen_width = 0_usize;
             let mut screen_height = 0_usize;
 
+            let mut y = 0;
+
             while let Some(line) = lines.next() {
+                let mut x = 0;
 
                 let mut chars = line.chars();
                 let mut line_width = 0;
@@ -234,6 +241,7 @@ impl CodeEditor {
 
                     if let Some((metrics, _bitmap)) = self.metrics.get(&c) {
                         line_width += metrics.advance_width.ceil() as usize;
+                        x += 1;
                     }
                 }
 
@@ -242,6 +250,8 @@ impl CodeEditor {
                 }
 
                 screen_height += self.advance_height;
+                self.last_pos = (x, y);
+                y += 1;
             }
 
             //println!("{} x {}", screen_width, screen_height);
@@ -503,6 +513,51 @@ impl CodeEditor {
 
             if inside {
                 if let Some(end) = end {
+                    if y > end.1 || (y == end.1 && x >= end.0) {
+                        break;
+                    }
+                }
+            }
+
+            if inside {
+                s.push(c);
+            }
+
+            if c == '\n' {
+                x = 0;
+                y += 1;
+            } else {
+                x += 1;
+            }
+        }
+        s
+    }
+
+    /// Copies the given range and returns it
+    fn copy_range_incl(&self, start: Option<(usize, usize)>, end: Option<(usize, usize)>) -> String {
+        let mut s = "".to_string();
+
+        let mut x = 0;
+        let mut y = 0;
+
+        let mut inside = false;
+
+        let mut chars = self.text.chars();
+
+        while let Some(c) = chars.next() {
+
+            if inside == false {
+                if let Some(start) = start {
+                    if y > start.1 || (y == start.1 && x >= start.0)  {
+                        inside = true;
+                    }
+                } else {
+                    inside = true;
+                }
+            }
+
+            if inside {
+                if let Some(end) = end {
                     if y > end.1 || (y == end.1 && x > end.0) {
                         break;
                     }
@@ -529,7 +584,7 @@ impl CodeEditor {
 
             // Copy
             if char == Some('c') || char == Some('C') {
-                let clip = self.copy_range(self.range_start, self.range_end);
+                let clip = self.copy_range_incl(self.range_start, self.range_end);
                 //println!("{}", clip);
 
                 let mut ctx = ClipboardContext::new().unwrap();
@@ -540,23 +595,23 @@ impl CodeEditor {
 
             // Cut
             if char == Some('x') || char == Some('X') {
-                let clip = self.copy_range(self.range_start, self.range_end);
+                let clip = self.copy_range_incl(self.range_start, self.range_end);
 
                 let mut ctx = ClipboardContext::new().unwrap();
                 _ = ctx.set_contents(clip.to_owned());
 
                 if let Some(start) = self.range_start {
                     if let Some(end) = self.range_end {
-                        let first_half = self.copy_range(None, Some((std::cmp::max(start.0 - 1, 0), start.1)));
+                        let first_half = self.copy_range(None, Some((std::cmp::max(start.0, 0), start.1)));
                         let second_half = self.copy_range(Some((end.0 + 1, end.1)), None);
                         let text = first_half + second_half.as_str();
                         self.text = text;
-                        self.process_text();
-
-                        self.set_cursor((start.0, start.1));
 
                         self.range_start = None;
                         self.range_end = None;
+                        self.process_text();
+
+                        self.set_cursor((start.0, start.1));
                     }
                 }
 
@@ -568,15 +623,18 @@ impl CodeEditor {
                 let mut ctx = ClipboardContext::new().unwrap();
                 if let Some(text) = ctx.get_contents().ok() {
 
-                    let mut half = self.cursor_pos.clone();
-                    if half.0 > 0 { half.0 -= 1; }
+                    let half = self.cursor_pos.clone();
 
                     let first_half = self.copy_range(None, Some(half));
                     let second_half = self.copy_range(Some(self.cursor_pos), None);
 
-                    let new_text = first_half + text.as_str() + second_half.as_str();
+                    let new_text = first_half + text.as_str();
 
-                    self.text = new_text;
+                    self.text = new_text.clone();
+                    self.process_text();
+                    self.set_cursor(self.last_pos);
+
+                    self.text = new_text + second_half.as_str();
                     self.needs_update = true;
                 }
                 return true;
@@ -590,7 +648,7 @@ impl CodeEditor {
                     let mut handled = false;
                     if let Some(start) = self.range_start {
                         if let Some(end) = self.range_end {
-                            let first_half = self.copy_range(None, Some((std::cmp::max(start.0 - 1, 0), start.1)));
+                            let first_half = self.copy_range(None, Some((std::cmp::max(start.0, 0), start.1)));
                             let second_half = self.copy_range(Some((end.0 + 1, end.1)), None);
                             let text = first_half + second_half.as_str();
                             self.text = text;
@@ -620,7 +678,8 @@ impl CodeEditor {
                         self.process_text();
 
                         if delete_line == false {
-                            self.set_cursor_offset_from_pos((self.cursor_rect.0 - self.advance_width, self.cursor_rect.1 + 10));
+                            let x = if self.cursor_rect.0 > self.advance_width { self.cursor_rect.0 - self.advance_width } else { 0 };
+                            self.set_cursor_offset_from_pos((x, self.cursor_rect.1 + 10));
                         } else {
                             self.set_cursor_offset_from_pos((number_of_chars_on_prev_line * self.advance_width - 2, self.cursor_rect.1 - 5));
                         }
