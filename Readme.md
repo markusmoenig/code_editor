@@ -17,7 +17,7 @@ A standalone ```pixels``` and ```winit``` based example app is included in this 
 Add code_editor to your Cargo.toml
 
 ```
-code_editor = "0.3.1"
+code_editor = "0.3.2"
 ```
 
 And than in your app

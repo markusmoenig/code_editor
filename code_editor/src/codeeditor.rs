@@ -143,6 +143,7 @@ impl CodeEditor {
     pub fn set_text(&mut self, text: String) {
         self.text = text;
         self.needs_update = true;
+        self.set_cursor((0, 0));
     }
 
     /// Returns the edited text
@@ -485,7 +486,7 @@ impl CodeEditor {
     }
 
     /// Sets the cursor to the given position
-    fn set_cursor(&mut self, pos: (usize, usize)) {
+    pub fn set_cursor(&mut self, pos: (usize, usize)) {
         self.cursor_pos = pos;
         self.cursor_rect.0 = pos.0 * self.advance_width;
         self.cursor_rect.1 = (pos.1+1) * self.advance_height;
