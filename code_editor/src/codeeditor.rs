@@ -850,19 +850,35 @@ impl CodeEditor {
 
                         // Go Right
 
+                        let mut last_t = "".to_string();
+
                         loop {
                             right += 1;
                             let r_end = Some((right, line));
                             let t = self.copy_range_incl(range_start, r_end);
                             let c = t.chars().last();
 
+                            println!("{:?}", t.chars());
+                            if t.chars().count() <= 1 {
+                                break;
+                            }
+
                             if let Some(c) = c {
                                 if c.is_alphanumeric() == false {
                                     right -= 1;
                                     range_end = Some((right, line));
                                     break;
+                                } else {
+                                    if t == last_t {
+                                        range_end = Some((100000, line));
+                                        break;
+                                    }
                                 }
+                            } else {
+                                range_end = Some((100000, line));
+                                break;
                             }
+                            last_t = t.clone();
                         }
 
                         self.range_start = range_start;
