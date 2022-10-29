@@ -859,7 +859,6 @@ impl CodeEditor {
                             let t = self.copy_range_incl(range_start, r_end);
                             let c = t.chars().last();
 
-                            println!("{:?}", t.chars());
                             if t.chars().count() <= 1 {
                                 break;
                             }
