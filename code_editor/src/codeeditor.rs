@@ -951,7 +951,7 @@ impl CodeEditor {
     pub fn mouse_wheel(&mut self, delta: (isize, isize)) -> bool {
         self.mouse_wheel_delta.0 += delta.0;
         self.mouse_wheel_delta.1 += delta.1;
-        self.offset.0 += self.mouse_wheel_delta.0 / (self.advance_width as isize * 6);
+        self.offset.0 -= self.mouse_wheel_delta.0 / (self.advance_width as isize * 6);
         self.offset.1 -= self.mouse_wheel_delta.1 / (self.advance_height as isize * 1);
         self.offset.0 = self.offset.0.clamp(0, self.max_offset.0 as isize);
         self.offset.1 = self.offset.1.clamp(0, self.max_offset.1 as isize);
