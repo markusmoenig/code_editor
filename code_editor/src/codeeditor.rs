@@ -767,17 +767,16 @@ impl CodeEditor {
                 let mut handled = false;
                 if let Some(start) = self.range_start {
                     if let Some(end) = self.range_end {
-                        let first_half = self.copy_range(None, Some((std::cmp::max(start.0 - 1, 0), start.1)));
+                        let first_half = self.copy_range(None, Some((std::cmp::max(start.0 /*- 1 ??*/, 0), start.1)));
                         let second_half = self.copy_range(Some((end.0 + 1, end.1)), None);
                         let text = first_half + c.to_string().as_str() + second_half.as_str();
                         self.text = text;
+                        self.range_start = None;
+                        self.range_end = None;
                         self.process_text();
                         handled = true;
 
                         self.set_cursor((start.0 + 1, start.1));
-
-                        self.range_start = None;
-                        self.range_end = None;
                     }
                 }
 
