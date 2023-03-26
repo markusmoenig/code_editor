@@ -129,6 +129,12 @@ impl CodeEditor {
         }
     }
 
+    /// Sets the font directly
+    pub fn set_font_data(&mut self, font: Font) {
+        self.font = Some(font);
+    }
+
+    /// Sets the font size
     pub fn set_font_size(&mut self, font_size: f32) {
 
         if let Some(font) = &self.font {
@@ -976,4 +982,45 @@ impl CodeEditor {
             stop.as_millis()
     }
 
+    pub fn cut(&mut self) -> String {
+        let text = self.copy_range_incl(self.range_start, self.range_end);
+
+        if let Some(start) = self.range_start {
+            if let Some(end) = self.range_end {
+                let first_half = self.copy_range(None, Some((std::cmp::max(start.0, 0), start.1)));
+                let second_half = self.copy_range(Some((end.0 + 1, end.1)), None);
+                let text = first_half + second_half.as_str();
+                self.text = text;
+
+                self.range_start = None;
+                self.range_end = None;
+                self.process_text();
+
+                self.set_cursor((start.0, start.1));
+            }
+        }
+
+        text
+    }
+
+    pub fn copy(&mut self) -> String {
+        self.copy_range_incl(self.range_start, self.range_end)
+    }
+
+    // Paste
+    pub fn paste(&mut self, text: String) {
+        let half = self.cursor_pos.clone();
+
+        let first_half = self.copy_range(None, Some(half));
+        let second_half = self.copy_range(Some(self.cursor_pos), None);
+
+        let new_text = first_half + text.as_str();
+
+        self.text = new_text.clone();
+        self.process_text();
+        self.set_cursor(self.last_pos);
+
+        self.text = new_text + second_half.as_str();
+        self.needs_update = true;
+    }
 }

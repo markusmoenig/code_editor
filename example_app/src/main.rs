@@ -98,7 +98,7 @@ if result != ANSWER {
 
         if let Event::RedrawRequested(_) = event {
 
-            let frame = pixels.get_frame();
+            let frame = pixels.frame_mut();
             code_editor.draw(frame, (0, 0, width, height), width);
 
             if pixels
@@ -222,7 +222,7 @@ if result != ANSWER {
         // Handle input events
         if input.update(&event) {
             // Close events
-            if /*input.key_pressed(VirtualKeyCode::Escape) ||*/ input.quit() {
+            if /*input.key_pressed(VirtualKeyCode::Escape) ||*/ input.close_requested() {
                 *control_flow = ControlFlow::Exit;
                 return;
             }
@@ -273,9 +273,9 @@ if result != ANSWER {
 
             // Resize the window
             if let Some(size) = input.window_resized() {
-                pixels.resize_surface(size.width, size.height);
+                _ = pixels.resize_surface(size.width, size.height);
                 let scale = window.scale_factor() as u32;
-                pixels.resize_buffer(size.width / scale, size.height / scale);
+                _ = pixels.resize_buffer(size.width / scale, size.height / scale);
                 width = size.width as usize / scale as usize;
                 height = size.height as usize / scale as usize;
                 window.request_redraw();
