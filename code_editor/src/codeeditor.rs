@@ -1089,6 +1089,16 @@ impl CodeEditor {
         self.undo_stack.add(undo, undo_pos, self.text.clone(), self.cursor_pos);
     }
 
+    /// Has Undo
+    pub fn has_undo(&mut self) -> bool {
+        self.undo_stack.has_undo()
+    }
+
+    /// Has Redo
+    pub fn has_redo(&mut self) -> bool {
+        self.undo_stack.has_redo()
+    }
+
     /// Undo
     pub fn undo(&mut self) {
         if self.undo_stack.has_undo() {
