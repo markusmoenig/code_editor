@@ -4,6 +4,7 @@ pub mod theme;
 pub mod settings;
 pub mod codeeditor;
 pub mod error;
+pub mod undo;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum WidgetKey {

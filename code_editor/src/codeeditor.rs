@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::prelude::*;
+use crate::{prelude::*, undo::UndoStack};
 
 use fontdue::{ Font, Metrics };
 
@@ -63,6 +63,8 @@ pub struct CodeEditor {
     code_safe_rect          : (usize, usize, usize, usize),
 
     pub drag_pos            : Option<(usize, usize)>,
+
+    undo_stack              : UndoStack,
 }
 
 impl CodeEditor {
@@ -120,6 +122,8 @@ impl CodeEditor {
             code_safe_rect              : (0, 0, 0, 0),
 
             drag_pos                    : None,
+
+            undo_stack                  : UndoStack::new(),
         }
     }
 
@@ -154,6 +158,7 @@ impl CodeEditor {
         self.text = text;
         self.needs_update = true;
         self.set_cursor((0, 0));
+        self.undo_stack = UndoStack::new();
     }
 
     /// Returns the edited text
@@ -599,6 +604,7 @@ impl CodeEditor {
     }
 
     pub fn key_down(&mut self, char: Option<char>, key: Option<WidgetKey>) -> bool {
+
         if self.logo || self.ctrl {
             use copypasta::{ClipboardContext, ClipboardProvider};
 
@@ -770,6 +776,8 @@ impl CodeEditor {
         if let Some(c) = char {
             if c.is_ascii() && c.is_control() == false {
 
+                let undo = self.text.clone();
+
                 let mut handled = false;
                 if let Some(start) = self.range_start {
                     if let Some(end) = self.range_end {
@@ -795,6 +803,9 @@ impl CodeEditor {
                     self.process_text();
                     self.set_cursor_offset_from_pos((self.cursor_rect.0 + self.advance_width, self.cursor_rect.1 + 10));
                 }
+
+                self.undo_stack.add(undo, self.text.clone(), self.cursor_pos);
+
                 return true;
             }
         }
@@ -1069,4 +1080,26 @@ impl CodeEditor {
         }
 
     }
+
+    /// Undo
+    pub fn undo(&mut self) {
+        if self.undo_stack.has_undo() {
+            self.text = self.undo_stack.undo();
+            self.process_text();
+            self.set_cursor(self.cursor_pos);
+            self.needs_update = true;
+        }
+    }
+
+    /// Redo
+    pub fn redo(&mut self) {
+        if self.undo_stack.has_redo() {
+            let rc = self.undo_stack.redo();
+            self.text = rc.0;
+            self.process_text();
+            self.set_cursor(rc.1);
+            self.needs_update = true;
+        }
+    }
+
 }
