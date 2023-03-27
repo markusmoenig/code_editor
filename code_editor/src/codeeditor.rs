@@ -60,6 +60,8 @@ pub struct CodeEditor {
     last_click              : u128,
     click_stage             : i32,
 
+    code_safe_rect          : (usize, usize, usize, usize),
+
     pub drag_pos            : Option<(usize, usize)>,
 }
 
@@ -114,6 +116,8 @@ impl CodeEditor {
             last_pos                    : (0, 0),
             last_click                  : 0,
             click_stage                 : 0,
+
+            code_safe_rect              : (0, 0, 0, 0),
 
             drag_pos                    : None,
         }
@@ -207,6 +211,7 @@ impl CodeEditor {
         // Code
         let code_safe_rect = (rect.0 + self.line_numbers_size.0, rect.1, rect.2 - self.line_numbers_size.0, rect.3);
         self.draw2d.blend_slice_safe(frame, &mut self.text_buffer[..], &(x, y, self.text_buffer_size.0, self.text_buffer_size.1), stride, &code_safe_rect);
+        self.code_safe_rect = code_safe_rect;
 
         // Cursor
         self.draw2d.draw_rect_safe(frame, &((rect.0 + self.line_numbers_size.0 + self.cursor_rect.0) as isize - self.offset.0 * self.advance_width as isize, (rect.1 + self.cursor_rect.1) as isize - self.offset.1 * self.advance_height as isize, self.cursor_rect.2, self.cursor_rect.3), stride, &self.theme.cursor, &code_safe_rect);
@@ -484,7 +489,11 @@ impl CodeEditor {
                 self.cursor_rect.1 = y;
                 self.cursor_rect.3 = line_height;
             } else {
-                self.cursor_offset -= 1;
+                self.cursor_pos.0 = 0;
+                self.cursor_pos.1 = curr_line_index;
+                self.cursor_rect.0 = 0;
+                self.cursor_rect.1 = y - line_height;
+                self.cursor_rect.3 = line_height;
             }
         }
 
@@ -633,20 +642,7 @@ impl CodeEditor {
             if char == Some('v') || char == Some('V') {
                 let mut ctx = ClipboardContext::new().unwrap();
                 if let Some(text) = ctx.get_contents().ok() {
-
-                    let half = self.cursor_pos.clone();
-
-                    let first_half = self.copy_range(None, Some(half));
-                    let second_half = self.copy_range(Some(self.cursor_pos), None);
-
-                    let new_text = first_half + text.as_str();
-
-                    self.text = new_text.clone();
-                    self.process_text();
-                    self.set_cursor(self.last_pos);
-
-                    self.text = new_text + second_half.as_str();
-                    self.needs_update = true;
+                    self.paste(text);
                 }
                 return true;
             }
@@ -692,22 +688,26 @@ impl CodeEditor {
                             let x = if self.cursor_rect.0 > self.advance_width { self.cursor_rect.0 - self.advance_width } else { 0 };
                             self.set_cursor_offset_from_pos((x, self.cursor_rect.1 + 10));
                         } else {
-                            self.set_cursor_offset_from_pos((number_of_chars_on_prev_line * self.advance_width - 2, self.cursor_rect.1 - 5));
+                            if number_of_chars_on_prev_line == 0 {
+                                self.set_cursor_offset_from_pos((0, self.cursor_rect.1 - 5));
+                            } else {
+                                self.set_cursor_offset_from_pos((number_of_chars_on_prev_line * self.advance_width - 2, self.cursor_rect.1 - 5));
+                            }
                         }
                     }
                     return  true;
                 },
 
                 WidgetKey::Tab => {
-                    self.text.insert(self.cursor_offset, ' ');
-                    self.text.insert(self.cursor_offset + 1, ' ');
+                    self.text.insert(self.cursor_offset.min(self.text.len()), ' ');
+                    self.text.insert((self.cursor_offset + 1).min(self.text.len()), ' ');
                     self.process_text();
                     self.set_cursor_offset_from_pos((self.cursor_rect.0 + self.advance_width * 2, self.cursor_rect.1 + 10));
                     return  true;
                 },
 
                 WidgetKey::Return => {
-                    self.text.insert(self.cursor_offset, '\n');
+                    self.text.insert(self.cursor_offset.min(self.text.len()), '\n');
                     self.process_text();
                     self.set_cursor_offset_from_pos((0, self.cursor_rect.1 + 30));
                     return  true;
@@ -773,7 +773,7 @@ impl CodeEditor {
                 let mut handled = false;
                 if let Some(start) = self.range_start {
                     if let Some(end) = self.range_end {
-                        let first_half = self.copy_range(None, Some((std::cmp::max(start.0 /*- 1 ??*/, 0), start.1)));
+                        let first_half = self.copy_range(None, Some((std::cmp::max(start.0, 0), start.1)));
                         let second_half = self.copy_range(Some((end.0 + 1, end.1)), None);
                         let text = first_half + c.to_string().as_str() + second_half.as_str();
                         self.text = text;
@@ -790,7 +790,7 @@ impl CodeEditor {
                     if self.text.is_empty() {
                         self.text.push(c);
                     } else {
-                        self.text.insert(self.cursor_offset, c);
+                        self.text.insert(self.cursor_offset.min(self.text.len()), c);
                     }
                     self.process_text();
                     self.set_cursor_offset_from_pos((self.cursor_rect.0 + self.advance_width, self.cursor_rect.1 + 10));
@@ -962,6 +962,31 @@ impl CodeEditor {
         self.offset.1 = self.offset.1.clamp(0, self.max_offset.1 as isize);
         self.mouse_wheel_delta.0 -= (self.mouse_wheel_delta.0 / (self.advance_width as isize * 6)) * self.advance_width as isize;
         self.mouse_wheel_delta.1 -= (self.mouse_wheel_delta.1 / (self.advance_height as isize * 1)) * self.advance_height as isize;
+
+        // If the editors width is larger than the text width dont scroll.
+        if self.code_safe_rect.2 >= self.text_buffer_size.0 {
+            self.offset.0 = 0;
+        } else {
+            // Make sure only to scroll as much as needed
+            let max_scroll_x = (self.text_buffer_size.0 - self.code_safe_rect.2) / self.advance_width;
+            if self.offset.0 > max_scroll_x as isize {
+                self.offset.0 = max_scroll_x as isize;
+            }
+        }
+
+        let y_height = self.text_buffer_size.1;// - self.settings.line_number_width;
+
+        // If the editors height is larger than the text height dont scroll.
+        if self.code_safe_rect.3 >= y_height {
+            self.offset.1 = 0;
+        } else {
+            // Make sure only to scroll as much as needed
+            let max_scroll_y = (y_height - self.code_safe_rect.3) / self.advance_height;
+            if self.offset.1 > max_scroll_y as isize {
+                self.offset.1 = max_scroll_y as isize;
+            }
+        }
+
         true
     }
 
@@ -974,6 +999,7 @@ impl CodeEditor {
     }
 
     /// Gets the current time in milliseconds
+    ///
     fn get_time(&self) -> u128 {
         use std::time::{SystemTime, UNIX_EPOCH};
         let stop = SystemTime::now()
@@ -1009,18 +1035,38 @@ impl CodeEditor {
 
     // Paste
     pub fn paste(&mut self, text: String) {
-        let half = self.cursor_pos.clone();
+        let mut handled = false;
+        if let Some(start) = self.range_start {
+            if let Some(end) = self.range_end {
+                let first_half = self.copy_range(None, Some((std::cmp::max(start.0, 0), start.1)));
+                let second_half = self.copy_range(Some((end.0 + 1, end.1)), None);
+                let text = first_half + text.to_string().as_str() + second_half.as_str();
 
-        let first_half = self.copy_range(None, Some(half));
-        let second_half = self.copy_range(Some(self.cursor_pos), None);
+                self.text = text;
+                self.range_start = None;
+                self.range_end = None;
+                self.process_text();
+                handled = true;
 
-        let new_text = first_half + text.as_str();
+                self.set_cursor((start.0, start.1));
+            }
+        }
 
-        self.text = new_text.clone();
-        self.process_text();
-        self.set_cursor(self.last_pos);
+        if handled == false {
+            let half = self.cursor_pos.clone();
 
-        self.text = new_text + second_half.as_str();
-        self.needs_update = true;
+            let first_half = self.copy_range(None, Some(half));
+            let second_half = self.copy_range(Some(self.cursor_pos), None);
+
+            let new_text = first_half + text.as_str();
+
+            self.text = new_text.clone();
+            self.process_text();
+            self.set_cursor(self.last_pos);
+
+            self.text = new_text + second_half.as_str();
+            self.needs_update = true;
+        }
+
     }
 }
