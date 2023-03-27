@@ -1,5 +1,7 @@
 pub struct Undo {
     pub undo_data           : String,
+    pub undo_pos            : (usize, usize),
+
     pub redo_data           : String,
     pub redo_pos            : (usize, usize),
 
@@ -31,8 +33,8 @@ impl UndoStack {
         false
     }
 
-    pub fn undo(&mut self) -> String {
-        let rc = self.stack[self.index as usize].undo_data.clone();
+    pub fn undo(&mut self) -> (String, (usize, usize)) {
+        let rc = (self.stack[self.index as usize].undo_data.clone(), self.stack[self.index as usize].undo_pos.clone());
         self.index -= 1;
         rc
     }
@@ -43,7 +45,7 @@ impl UndoStack {
         rc
     }
 
-    pub fn add(&mut self, undo: String, redo: String, redo_pos: (usize, usize)) {
+    pub fn add(&mut self, undo: String, undo_pos: (usize, usize), redo: String, redo_pos: (usize, usize)) {
 
         if self.index >= 0 {
 
@@ -67,6 +69,7 @@ impl UndoStack {
 
         self.stack.push(Undo {
             undo_data   : undo,
+            undo_pos    : undo_pos,
             redo_data   : redo,
             redo_pos    : redo_pos,
             time_stamp  : self.get_time(),

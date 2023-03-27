@@ -605,6 +605,9 @@ impl CodeEditor {
 
     pub fn key_down(&mut self, char: Option<char>, key: Option<WidgetKey>) -> bool {
 
+        let undo = self.text.clone();
+        let undo_pos = self.cursor_pos;
+
         if self.logo || self.ctrl {
             use copypasta::{ClipboardContext, ClipboardProvider};
 
@@ -701,6 +704,7 @@ impl CodeEditor {
                             }
                         }
                     }
+                    self.undo_stack.add(undo, undo_pos, self.text.clone(), self.cursor_pos);
                     return  true;
                 },
 
@@ -709,6 +713,7 @@ impl CodeEditor {
                     self.text.insert((self.cursor_offset + 1).min(self.text.len()), ' ');
                     self.process_text();
                     self.set_cursor_offset_from_pos((self.cursor_rect.0 + self.advance_width * 2, self.cursor_rect.1 + 10));
+                    self.undo_stack.add(undo, undo_pos, self.text.clone(), self.cursor_pos);
                     return  true;
                 },
 
@@ -716,6 +721,7 @@ impl CodeEditor {
                     self.text.insert(self.cursor_offset.min(self.text.len()), '\n');
                     self.process_text();
                     self.set_cursor_offset_from_pos((0, self.cursor_rect.1 + 30));
+                    self.undo_stack.add(undo, undo_pos, self.text.clone(), self.cursor_pos);
                     return  true;
                 },
 
@@ -776,8 +782,6 @@ impl CodeEditor {
         if let Some(c) = char {
             if c.is_ascii() && c.is_control() == false {
 
-                let undo = self.text.clone();
-
                 let mut handled = false;
                 if let Some(start) = self.range_start {
                     if let Some(end) = self.range_end {
@@ -804,7 +808,7 @@ impl CodeEditor {
                     self.set_cursor_offset_from_pos((self.cursor_rect.0 + self.advance_width, self.cursor_rect.1 + 10));
                 }
 
-                self.undo_stack.add(undo, self.text.clone(), self.cursor_pos);
+                self.undo_stack.add(undo, undo_pos, self.text.clone(), self.cursor_pos);
 
                 return true;
             }
@@ -1046,6 +1050,9 @@ impl CodeEditor {
 
     // Paste
     pub fn paste(&mut self, text: String) {
+        let undo = self.text.clone();
+        let undo_pos = self.cursor_pos;
+
         let mut handled = false;
         if let Some(start) = self.range_start {
             if let Some(end) = self.range_end {
@@ -1079,14 +1086,16 @@ impl CodeEditor {
             self.needs_update = true;
         }
 
+        self.undo_stack.add(undo, undo_pos, self.text.clone(), self.cursor_pos);
     }
 
     /// Undo
     pub fn undo(&mut self) {
         if self.undo_stack.has_undo() {
-            self.text = self.undo_stack.undo();
+            let rc = self.undo_stack.undo();
+            self.text = rc.0;
             self.process_text();
-            self.set_cursor(self.cursor_pos);
+            self.set_cursor(rc.1);
             self.needs_update = true;
         }
     }
