@@ -191,12 +191,14 @@ impl CodeEditor {
             if drag_pos.1 >= rect.1 + rect.3 - 50 {
                 if (self.offset.1 as usize) < self.max_offset.1 {
                     self.offset.1 += 1;
+                    self.offset_sanity_check();
                     self.mouse_dragged(drag_pos);
                 }
             } else
             if drag_pos.1 <= rect.1 + 50 {
                 if self.offset.1 > 0 {
                     self.offset.1 -= 1;
+                    self.offset_sanity_check();
                     self.mouse_dragged(drag_pos);
                 }
             }
@@ -494,11 +496,18 @@ impl CodeEditor {
                 self.cursor_rect.1 = y;
                 self.cursor_rect.3 = line_height;
             } else {
-                self.cursor_pos.0 = 0;
-                self.cursor_pos.1 = curr_line_index;
-                self.cursor_rect.0 = 0;
-                self.cursor_rect.1 = y - line_height;
-                self.cursor_rect.3 = line_height;
+
+                // Selection is out of scope, select the end of the text
+
+                let lines = self.text.lines();
+                if let Some(l) = lines.last() {
+
+                    self.cursor_pos.0 = l.len();
+                    self.cursor_pos.1 = curr_line_index;
+                    self.cursor_rect.0 = l.len() * self.advance_width - 2;
+                    self.cursor_rect.1 = y - line_height;
+                    self.cursor_rect.3 = line_height;
+                }
             }
         }
 
@@ -978,6 +987,13 @@ impl CodeEditor {
         self.mouse_wheel_delta.0 -= (self.mouse_wheel_delta.0 / (self.advance_width as isize * 6)) * self.advance_width as isize;
         self.mouse_wheel_delta.1 -= (self.mouse_wheel_delta.1 / (self.advance_height as isize * 1)) * self.advance_height as isize;
 
+        self.offset_sanity_check();
+
+        true
+    }
+
+    /// Makes sure that the offset is within a reasonable range.
+    pub fn offset_sanity_check(&mut self) {
         // If the editors width is larger than the text width dont scroll.
         if self.code_safe_rect.2 >= self.text_buffer_size.0 {
             self.offset.0 = 0;
@@ -1001,8 +1017,6 @@ impl CodeEditor {
                 self.offset.1 = max_scroll_y as isize;
             }
         }
-
-        true
     }
 
     pub fn modifier_changed(&mut self, shift: bool, ctrl: bool, alt: bool, logo: bool) -> bool {
@@ -1014,7 +1028,6 @@ impl CodeEditor {
     }
 
     /// Gets the current time in milliseconds
-    ///
     fn get_time(&self) -> u128 {
         use std::time::{SystemTime, UNIX_EPOCH};
         let stop = SystemTime::now()
@@ -1023,7 +1036,10 @@ impl CodeEditor {
             stop.as_millis()
     }
 
+    /// Cut
     pub fn cut(&mut self) -> String {
+        let undo = self.text.clone();
+        let undo_pos = self.cursor_pos;
         let text = self.copy_range_incl(self.range_start, self.range_end);
 
         if let Some(start) = self.range_start {
@@ -1040,15 +1056,16 @@ impl CodeEditor {
                 self.set_cursor((start.0, start.1));
             }
         }
-
+        self.undo_stack.add(undo, undo_pos, self.text.clone(), self.cursor_pos);
         text
     }
 
+    /// Copy
     pub fn copy(&mut self) -> String {
         self.copy_range_incl(self.range_start, self.range_end)
     }
 
-    // Paste
+    /// Paste
     pub fn paste(&mut self, text: String) {
         let undo = self.text.clone();
         let undo_pos = self.cursor_pos;
@@ -1090,12 +1107,12 @@ impl CodeEditor {
     }
 
     /// Has Undo
-    pub fn has_undo(&mut self) -> bool {
+    pub fn has_undo(&self) -> bool {
         self.undo_stack.has_undo()
     }
 
     /// Has Redo
-    pub fn has_redo(&mut self) -> bool {
+    pub fn has_redo(&self) -> bool {
         self.undo_stack.has_redo()
     }
 
