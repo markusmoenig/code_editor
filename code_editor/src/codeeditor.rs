@@ -669,7 +669,6 @@ impl CodeEditor {
         if let Some(key) = key {
             match key {
                 WidgetKey::Delete => {
-
                     let mut handled = false;
                     if let Some(start) = self.range_start {
                         if let Some(end) = self.range_end {
@@ -686,8 +685,6 @@ impl CodeEditor {
                         }
                     }
                     if handled == false && self.text.is_empty() == false && self.cursor_offset >= 1 {
-                        let index  = self.cursor_offset - 1;
-
                         let mut number_of_chars_on_prev_line = 0_usize;
                         let delete_line;
                         if self.cursor_pos.0 == 0 {
@@ -699,7 +696,8 @@ impl CodeEditor {
                             delete_line = false;
                         }
 
-                        self.text.drain(index..index+1).next();
+                        let index = (self.cursor_offset - 1).clamp(0, self.text.len() - 1);
+                        _ = self.text.remove(index);
                         self.process_text();
 
                         if delete_line == false {
